@@ -80,8 +80,7 @@ CREATE TABLE producto(
 	CONSTRAINT fk_id_gama_producto FOREIGN KEY(fkIdGama) REFERENCES gama_producto(idGama)
 );
 
-ALTER TABLE producto
-ADD imagen VARCHAR(50);
+
 
 -- Creación de la tabla productoProveedor
 CREATE TABLE productoProveedor(
@@ -522,6 +521,9 @@ values	(7, 'Semilla Naranja', 'FRUTALES', NULL, 'Sembrarse en terreno seco'),
 	(12, 'Semilla Chirimoya', 'FRUTALES', NULL, 'Sembrarse en terreno seco o húmedo'),
 	(13, 'Tijera De Poda Jardinería Mango Cubierto', 'HERRAMIENTAS', 'Largo 20cm', 'Herramientas manual para cortar arbustos'),
 	(14, 'Guadañadora Podadora Trabajo Pesado Gasolina', 'HERRAMIENTAS' , '150cm de largo', 'Podadora de combustible para usarse con árboles grandes o en cultivos de hoja pesada como el maíz');
+
+ALTER TABLE producto
+ADD imagen VARCHAR(50);
 
 UPDATE producto
 SET imagen = './helechoA.jpg'
