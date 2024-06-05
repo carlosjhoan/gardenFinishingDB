@@ -2076,3 +2076,278 @@ ORDER BY
 | 2011 |  5750000.00 |
 | 2020 |  7500000.00 |
 */
+
+-- Subconsultas
+
+/*
+*1.* Devuelve el nombre del cliente con mayor límite de crédito.
+*/
+
+SELECT
+	codigoCliente,
+	nombreCliente,
+	FORMAT(limiteCredito,2) as limitCredito
+FROM
+	cliente
+WHERE
+	limiteCredito = (SELECT MAX(limiteCredito) FROM cliente);
+
+
+/*
+| codigoCliente | nombreCliente                          | limitCredito   |
+|:-------------:|:--------------------------------------:|:--------------:|
+|             1 | EXPLOTACIONES AGRICOLAS VALJIMENO S.L. | 150,000,000.00 |
+*/
+
+
+/*
+*2.* Devuelve el nombre del producto que tenga el precio de venta más caro.
+*/
+
+
+SELECT
+	pd.nombre as nombreProucto,
+	pp.precioVenta,
+	pr.nombre as nombreProveedor
+FROM
+	producto as pd
+INNER JOIN
+	productoProveedor as pp
+ON
+	pp.fkCodigoProducto = pd.codigoProducto
+INNER JOIN
+	proveedor as pr
+ON
+	pr.idProveedor = pp.fkIdProveedor	
+WHERE
+	pp.precioVenta = ( SELECT
+				MAX(pp.precioVenta)
+			   FROM
+				producto as pd
+			   INNER JOIN
+				productoProveedor as pp
+			   ON
+				pp.fkCodigoProducto = pd.codigoProducto
+			   INNER JOIN
+				proveedor as pr
+			   ON
+				pr.idProveedor = pp.fkIdProveedor);
+
+/*
+| nombreProucto                                 | precioVenta | nombreProveedor            |
+|:---------------------------------------------:|:-----------:|:--------------------------:|
+| Guadañadora Podadora Trabajo Pesado Gasolina  |  1200000.00 | MIS PLANTOTAS BUACARAMANGA |
+*/
+
+
+/*
+*3.* Devuelve el nombre del producto del que se han vendido más unidades.
+(Tenga en cuenta que tendrá que calcular cuál es el número total de
+unidades que se han vendido de cada producto a partir de los datos de la
+tabla detalle_pedido)
+*/
+
+SELECT
+	pd.nombre as nombreProducto,
+	SUM(dp.cantidad) as cantidadProducto
+FROM
+	producto as pd
+INNER JOIN
+	detallePedido as dp
+ON
+	pd.codigoProducto = dp.fkCodigoProducto
+INNER JOIN
+	pedido as pe
+ON
+	pe.codigoPedido = dp.fkCodigoPedido
+GROUP BY
+	pd.codigoProducto
+
+HAVING
+	SUM(dp.cantidad) = (
+				SELECT MAX(cantidadProducto)
+				FROM
+					(SELECT
+						SUM(dp.cantidad) as cantidadProducto
+					FROM
+						producto as pd
+					INNER JOIN
+						detallePedido as dp
+					ON
+						pd.codigoProducto = dp.fkCodigoProducto
+					INNER JOIN
+						pedido as pe
+					ON
+						pe.codigoPedido = dp.fkCodigoPedido
+					GROUP BY
+						pd.codigoProducto
+					ORDER BY
+						cantidadProducto DESC) AS sum_productos);
+
+
+/*
+| nombreProducto  | cantidadProducto |
+|:---------------:|:----------------:|
+| Semilla Naranja |              150 |
+*/
+
+/*
+*4.* Los clientes cuyo límite de crédito sea mayor que los pagos que haya
+realizado. (Sin utilizar INNER JOIN).
+*/
+
+SELECT
+	nombreCliente,
+	FORMAT(limiteCredito, 2) as limiteCredito,
+	FORMAT(pagoTotal, 2) as pagoTotal
+FROM
+	(
+	  SELECT
+		cl.nombreCliente,
+		cl.limiteCredito as limiteCredito,
+		SUM(p.total) as pagoTotal
+	  FROM
+		cliente as cl,
+		pago as p
+	  WHERE
+		p.fkCodigoCliente = cl.codigoCliente
+	  GROUP BY
+		cl.codigoCliente
+	  HAVING
+		limiteCredito >= pagoTotal) as limitPago;
+
+/*
+| nombreCliente                                  | limiteCredito  | pagoTotal     |
+|:----------------------------------------------:|:--------------:|:-------------:|
+| EXPLOTACIONES AGRICOLAS VALJIMENO S.L.         | 150,000,000.00 | 26,040,000.00 |
+| Agropecuària de Moià                           | 50,000,000.00  | 16,332,000.00 |
+| Compo Iberia SL                                | 75,000,000.00  | 4,000,000.00  |
+| Casagro                                        | 5,000,000.00   | 2,500,000.00  |
+| AGRO-Spain Ingenieros                          | 110,000,000.00 | 3,630,000.00  |
+| AGROPECUARIA RIO FRIO LTDA                     | 10,000,000.00  | 7,500,000.00  |
+| Central Agroindustrial Mexiquense S.A. de C.V. | 25,000,000.00  | 4,000,000.00  |
+*/
+
+
+/*
+*5.* Devuelve el producto que más unidades tiene en stock.
+*/
+
+SELECT
+	pd.nombre as nombreProducto,
+	SUM(pp.cantidaEnStock) as cantidadStock
+FROM
+	producto as pd
+INNER JOIN
+	productoProveedor as pp
+ON
+	pp.fkCodigoProducto = pd.codigoProducto
+INNER JOIN
+	proveedor as pr
+ON
+	pr.idProveedor = pp.fkIdProveedor
+GROUP BY
+	pd.codigoProducto
+HAVING
+	cantidadStock = (
+			SELECT
+				MAX(cantidadStock)
+			FROM
+				(
+				  SELECT
+					pd.nombre as nombreProducto,
+					SUM(pp.cantidaEnStock) as cantidadStock
+				  FROM
+					producto as pd
+				  INNER JOIN
+					productoProveedor as pp
+				  ON
+					pp.fkCodigoProducto = pd.codigoProducto
+				  INNER JOIN
+					proveedor as pr
+				  ON
+					pr.idProveedor = pp.fkIdProveedor
+				  GROUP BY
+					pd.codigoProducto) as stock);
+
+/*
+| nombreProducto    | cantidadStock |
+|:-----------------:|:-------------:|
+| Semilla Maracuyá  |          2000 |
+*/
+
+/*
+*6.* Devuelve el producto que menos unidades tiene en stock.
+*/
+
+
+SELECT
+	pd.nombre as nombreProducto,
+	SUM(pp.cantidaEnStock) as cantidadStock
+FROM
+	producto as pd
+INNER JOIN
+	productoProveedor as pp
+ON
+	pp.fkCodigoProducto = pd.codigoProducto
+INNER JOIN
+	proveedor as pr
+ON
+	pr.idProveedor = pp.fkIdProveedor
+GROUP BY
+	pd.codigoProducto
+HAVING
+	cantidadStock = (
+			SELECT
+				MIN(cantidadStock)
+			FROM
+				(
+				  SELECT
+					pd.nombre as nombreProducto,
+					SUM(pp.cantidaEnStock) as cantidadStock
+				  FROM
+					producto as pd
+				  INNER JOIN
+					productoProveedor as pp
+				  ON
+					pp.fkCodigoProducto = pd.codigoProducto
+				  INNER JOIN
+					proveedor as pr
+				  ON
+					pr.idProveedor = pp.fkIdProveedor
+				  GROUP BY
+					pd.codigoProducto) as stock);
+
+/*
+| nombreProducto                                | cantidadStock |
+|:---------------------------------------------:|:-------------:|
+| Guadañadora Podadora Trabajo Pesado Gasolina  |            50 |
+*/
+
+
+/*
+*7.* Devuelve el nombre, los apellidos y el email de los empleados que están a
+cargo de Luis Gómez.
+*/
+
+SELECT
+	e.codigoEmpleado,
+	CONCAT(e.nombre, ' ', e.apellido1, ' ', e.apellido2) as NombreApellidosEmpleado
+FROM
+	empleado as e
+INNER JOIN
+	empleado as j
+ON
+	j.codigoEmpleado = e.fkCodigoJefe
+WHERE
+	CONCAT(j.nombre, ' ', j.apellido1) like 'Juan % Gómez';
+
+
+/*
+| codigoEmpleado | NombreApellidosEmpleado  |
+|:--------------:|:------------------------:|
+|             87 | Ángela Gutierrez Arango  |
+|             97 | Daniel Tobón Comba       |
+|            107 | María Correa Martínez    |
+|            117 | Mario Galvis Olago       |
+*/
